@@ -5,11 +5,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"regexp"
 
 	"github.com/gorilla/mux"
@@ -22,15 +24,15 @@ type Page struct {
 	Body  string `json:"content"`
 }
 
-var datePath = "data/"
+var datePath string
 
 func (p *Page) save() error {
-	filename := datePath + p.Title + ".txt"
+	filename := filepath.Join(datePath, p.Title+".txt")
 	return ioutil.WriteFile(filename, []byte(p.Body), 0600)
 }
 
 func loadPage(title string) (*Page, error) {
-	filename := datePath + title + ".txt"
+	filename := filepath.Join(datePath, title+".txt")
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -117,7 +119,6 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 func basicAuth(h http.HandlerFunc, requiredUser, requiredPassword string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, password, hasAuth := r.BasicAuth()
-		log.Print(user, password, hasAuth)
 		if hasAuth && user == requiredUser && password == requiredPassword {
 			h(w, r)
 		} else {
@@ -141,6 +142,16 @@ func initTmpl() {
 }
 
 func main() {
+	flag.StringVar(&datePath, "data", "./data", "Where wiki data store")
+	port := flag.Int("port", 8080, "Server listen port")
+	addr := flag.String("addr", "127.0.0.1", "Server listen addr")
+	flag.Parse()
+
+	absPath, _ := filepath.Abs(datePath)
+	log.Printf("Data dir:%s", absPath)
+	listen := fmt.Sprintf("%s:%d", *addr, *port)
+	log.Printf("Listen on %s", listen)
+
 	initTmpl()
 
 	app := middleware.New()
@@ -154,5 +165,5 @@ func main() {
 	router.HandleFunc("/{title}/edit", basicAuth(makeHandler(editHandler), "admin", "123456")).Methods("GET")
 	app.UseHandler(router)
 
-	log.Fatal(app.Listen(":8080"))
+	log.Fatal(app.Listen(listen))
 }
