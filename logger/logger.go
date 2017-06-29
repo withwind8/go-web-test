@@ -15,7 +15,7 @@ func (l *logger) ServeHTTP(w http.ResponseWriter, r *http.Request, next func()) 
 	start := time.Now()
 	next()
 	ww := w.(*middleware.ResponseWriter)
-	log.Printf("%v %v %v %v %v %v", r.Method, r.URL.Path, ww.Status(), ww.Size(), time.Since(start), w.Header().Get("Content-Type"))
+	log.Printf("%v %v %v %v %v %v %v", r.RemoteAddr, r.Method, r.URL.Path, ww.Status(), ww.Size(), time.Since(start), w.Header().Get("Content-Type"))
 }
 
 func New() *logger {
