@@ -114,6 +114,19 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/"+title, http.StatusFound)
 }
 
+func basicAuth(h http.HandlerFunc, requiredUser, requiredPassword string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, password, hasAuth := r.BasicAuth()
+		log.Print(user, password, hasAuth)
+		if hasAuth && user == requiredUser && password == requiredPassword {
+			h(w, r)
+		} else {
+			w.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+	}
+}
+
 func initTmpl() {
 	templates = template.New("t").Funcs(template.FuncMap{
 		"parselink": func(s string) template.HTML {
@@ -138,7 +151,7 @@ func main() {
 	router.Handle("/favicon.ico", http.NotFoundHandler())
 	router.HandleFunc("/{title}", makeHandler(viewHandler)).Methods("GET")
 	router.HandleFunc("/{title}", makeHandler(saveHandler)).Methods("POST")
-	router.HandleFunc("/{title}/edit", makeHandler(editHandler)).Methods("GET")
+	router.HandleFunc("/{title}/edit", basicAuth(makeHandler(editHandler), "admin", "123456")).Methods("GET")
 	app.UseHandler(router)
 
 	log.Fatal(app.Listen(":8080"))
